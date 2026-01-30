@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VR Classroom – Mobile Vision Simulator</title>
+
+  <!-- A-Frame -->
+  <script src="./aframe.min.js"></script>
+  
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+    
+    #controls-info {
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.85);
+      color: white;
+      padding: 10px;
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      border-radius: 5px;
+      z-index: 1000;
+      text-align: center;
+    }
+    #controls-info h3 {
+      margin: 0 0 5px 0;
+      font-size: 14px;
+    }
+    #controls-info p {
+      margin: 3px 0;
+    }
+    
+    /* Hide info when in VR mode */
+    .a-enter-vr .a-orientation-modal {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  
+<div id="controls-info">
+  <h3>🔍 Vision Simulator (Mobile/VR)</h3>
+  <p>Look at buttons for 1 second to select</p>
+  <p>Enter VR mode for Cardboard experience</p>
+</div>
+
+<a-scene background="color: #ECECEC" vr-mode-ui="enabled: true">
+
+  <!-- CAMERA + CURSOR (VR-optimized) -->
+  <a-entity id="cameraRig" position="0 0.6 6">
+    <a-camera id="mainCamera" look-controls>
+      <!-- Gaze cursor για VR - μεγαλύτερο fuse timeout για καλύτερο control -->
+      <a-cursor
+        id="gazeCursor"
+        color="#4CAF50"
+        radius="0.02"
+        fuse="true"
+        fuse-timeout="1000"
+        raycaster="objects: .clickable; far: 20"
+        geometry="primitive: ring; radiusInner: 0.015; radiusOuter: 0.025"
+        material="shader: flat; opacity: 0.9">
+        <!-- Animation για visual feedback -->
+        <a-animation
+          begin="fusing"
+          easing="ease-in"
+          attribute="scale"
+          fill="backwards"
+          from="1 1 1"
+          to="0.2 0.2 0.2"
+          dur="1000">
+        </a-animation>
+      </a-cursor>
+
+      <!-- Tunnel Vision -->
+      <a-ring id="tunnelVision" visible="false" position="0 0 -0.1" radius-inner="0.05" radius-outer="1.0" color="#000000" opacity="0.98" class="non-interactive"></a-ring>
+      
+      <!-- Horse Blind Spot -->
+      <a-plane id="horseBlindSpot" visible="false" position="0 0 -0.12" width="0.12" height="0.8" material="shader: flat; color: #000000; opacity: 0.98" class="non-interactive"></a-plane>
+      
+      <!-- Macular Degeneration -->
+      <a-circle id="macularDarkSpot" visible="false" position="0 0 -0.11" radius="0.05" color="#000000" opacity="0.95" class="non-interactive"></a-circle>
+      <a-circle id="macularBlurRing" visible="false" position="0 0 -0.105" radius="0.15" color="#555555" opacity="0.7" class="non-interactive"></a-circle>
+    </a-camera>
+  </a-entity>
+
+  <!-- CLASSROOM MODEL -->
+  <a-entity id="classroom" gltf-model="classroom.glb" position="0 -1.2 0" scale="0.5 0.5 0.5"></a-entity>
+
+  <!-- MAIN MENU - Μεγαλύτερα buttons για mobile -->
+  <a-plane id="animalMenu" class="clickable" position="-1.5 3.5 -4" width="2.5" height="1.2" color="#CE93D8" 
+    text="value: ANIMAL\nVISION; align: center; color: #000000; width: 5; wrapCount: 15">
+  </a-plane>
+  
+  <a-plane id="disabilityMenu" class="clickable" position="1.5 3.5 -4" width="2.5" height="1.2" color="#FFC107" 
+    text="value: VISION\nDISABILITIES; align: center; color: #000000; width: 5; wrapCount: 15">
+  </a-plane>
+  
+  <a-plane id="resetButton" class="clickable" position="0 1.8 -4" width="2.5" height="1.2" color="#A5D6A7" 
+    text="value: RESET\nNORMAL; align: center; color: #000000; width: 5; wrapCount: 15">
+  </a-plane>
+
+  <!-- ANIMAL DROPDOWN - Προσαρμοσμένο για VR -->
+  <a-entity id="animalOptions" visible="false">
+    <a-plane class="clickable animal-option" position="-1.5 2 -3.5" width="2.3" height="1" color="#FFFFFF" 
+      text="value: COW; align: center; color: #000000; width: 5" data-vision="Cow">
+    </a-plane>
+    
+    <a-plane class="clickable animal-option" position="-1.5 0.7 -3.5" width="2.3" height="1" color="#FFFFFF" 
+      text="value: HORSE; align: center; color: #000000; width: 5" data-vision="Horse">
+    </a-plane>
+    
+    <a-plane class="clickable animal-option" position="-1.5 -0.6 -3.5" width="2.3" height="1" color="#FFFFFF" 
+      text="value: FISH; align: center; color: #000000; width: 5" data-vision="Sparrow">
+    </a-plane>
+  </a-entity>
+
+  <!-- DISABILITY DROPDOWN - Προσαρμοσμένο για VR -->
+  <a-entity id="disabilityOptions" visible="false">
+    <a-plane class="clickable disability-option" position="1.5 2 -3.5" width="2.3" height="1" color="#FFFFFF" 
+      text="value: PROTANOPIA; align: center; color: #000000; width: 5" data-vision="Protanopia">
+    </a-plane>
+    
+    <a-plane class="clickable disability-option" position="1.5 0.7 -3.5" width="2.3" height="1" color="#FFFFFF" 
+      text="value: MACULAR\nDEGENERATION; align: center; color: #000000; width: 5; wrapCount: 15" data-vision="Macular">
+    </a-plane>
+    
+    <a-plane class="clickable disability-option" position="1.5 -0.6 -3.5" width="2.3" height="1" color="#FFFFFF" 
+      text="value: TUNNEL VISION; align: center; color: #000000; width: 5" data-vision="Tunnel">
+    </a-plane>
+  </a-entity>
+
+  <!-- SCRIPT -->
+  <script>
+document.addEventListener('DOMContentLoaded', function() {
+  let originalMaterials = [];
+  let materialsStored = false;
+  let originalCameraFOV = 80;
+  let currentVisionActive = null;
+  
+  // Μεταβλητές ελέγχου μενού
+  let menuIsOpen = false;
+  let lastMenuOpened = null;
+
+  const scene = document.querySelector('a-scene');
+  scene.addEventListener('loaded', function() {
+    setTimeout(storeMaterials, 3000);
+    const camera = document.querySelector('#mainCamera');
+    originalCameraFOV = camera.getAttribute('camera').fov || 80;
+    setupMenuHandlers();
+    hideInfoOnVREnter();
+  });
+
+  // Κρύβουμε το info panel όταν μπαίνουμε σε VR mode
+  function hideInfoOnVREnter() {
+    const sceneEl = document.querySelector('a-scene');
+    sceneEl.addEventListener('enter-vr', function() {
+      document.getElementById('controls-info').style.display = 'none';
+    });
+    sceneEl.addEventListener('exit-vr', function() {
+      document.getElementById('controls-info').style.display = 'block';
+    });
+  }
+
+  function storeMaterials() {
+    if (materialsStored) return;
+    const classroom = document.querySelector('#classroom');
+    if (!classroom || !classroom.object3D) { setTimeout(storeMaterials, 1000); return; }
+
+    classroom.object3D.traverse(node => {
+      if (node.isMesh && node.material) {
+        originalMaterials.push({
+          mesh: node,
+          color: node.material.color ? node.material.color.clone() : null,
+          emissive: node.material.emissive ? node.material.emissive.clone() : null,
+          material: node.material.clone()
+        });
+      }
+    });
+
+    materialsStored = true;
+    console.log('✓ Stored materials for', originalMaterials.length, 'meshes');
+  }
+
+  function resetVision() {
+    document.querySelector('#tunnelVision').setAttribute('visible', false);
+    document.querySelector('#horseBlindSpot').setAttribute('visible', false);
+    document.querySelector('#macularDarkSpot').setAttribute('visible', false);
+    document.querySelector('#macularBlurRing').setAttribute('visible', false);
+
+    const camera = document.querySelector('#mainCamera');
+    camera.setAttribute('camera', 'fov', originalCameraFOV);
+
+    originalMaterials.forEach(item => {
+      if (item.material) {
+        item.mesh.material.dispose();
+        item.mesh.material = item.material.clone();
+        item.mesh.material.needsUpdate = true;
+      }
+    });
+
+    document.querySelector('#animalOptions').setAttribute('visible', false);
+    document.querySelector('#disabilityOptions').setAttribute('visible', false);
+    
+    menuIsOpen = false;
+    lastMenuOpened = null;
+    currentVisionActive = null;
+    
+    console.log('✓ Vision reset to normal');
+  }
+
+  // VISION FUNCTIONS
+  function applyCowVision() {
+    if (currentVisionActive === 'Cow') return;
+    resetVision(); currentVisionActive='Cow';
+    if (!originalMaterials.length) { setTimeout(applyCowVision,1000); return; }
+    const camera=document.querySelector('#mainCamera'); camera.setAttribute('camera','fov',55);
+    originalMaterials.forEach(item=>{ if(item.color){ const c=item.color; const lum=c.r*0.299+c.g*0.587+c.b*0.114; item.mesh.material.color.copy(new THREE.Color(lum*0.85+0.15, lum*0.8+0.2, lum*0.3)); } });
+    console.log('✓ Cow vision applied');
+  }
+
+  function applyHorseVision() {
+    if (currentVisionActive === 'Horse') return;
+    resetVision(); currentVisionActive='Horse';
+    if (!originalMaterials.length) { setTimeout(applyHorseVision,1000); return; }
+    document.querySelector('#horseBlindSpot').setAttribute('visible', true);
+    originalMaterials.forEach(item=>{ if(item.color){ const c=item.color; item.mesh.material.color.copy(new THREE.Color(c.r*0.4+c.g*0.3, c.g*0.95, c.b*1.1)); } });
+    console.log('✓ Horse vision applied');
+  }
+
+  function applySparrowVision() {
+    if (currentVisionActive === 'Sparrow') return;
+    resetVision(); currentVisionActive='Sparrow';
+    if (!originalMaterials.length) { setTimeout(applySparrowVision,1000); return; }
+    document.querySelector('#mainCamera').setAttribute('camera','fov',100);
+    originalMaterials.forEach(item=>{
+      if(item.color && item.mesh && item.mesh.material){
+        const c=item.color;
+        const newR=Math.min(1.0,c.r*0.8+0.3);
+        const newG=c.g*0.4+0.2;
+        const newB=Math.min(1.0,c.b*0.7+0.4);
+        item.mesh.material.color.setRGB(newR,newG,newB);
+        item.mesh.material.needsUpdate=true;
+      }
+    });
+    console.log('✓ Fish vision applied');
+  }
+
+  function applyProtanopia() {
+    if (currentVisionActive === 'Protanopia') return;
+    resetVision();
+    currentVisionActive = 'Protanopia';
+
+    if (originalMaterials.length === 0) {
+      console.log('Waiting for materials to load...');
+      setTimeout(applyProtanopia, 1000);
+      return;
+    }
+
+    console.log('Applying Protanopia shader to', originalMaterials.length, 'materials');
+
+    originalMaterials.forEach(item => {
+      if (!item.mesh || !item.mesh.material) return;
+
+      const shaderMat = new THREE.ShaderMaterial({
+        uniforms: {
+          map: { value: item.mesh.material.map }
+        },
+        vertexShader: `
+          varying vec2 vUV;
+          void main() {
+            vUV = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          uniform sampler2D map;
+          varying vec2 vUV;
+
+          void main() {
+            vec4 color = texture2D(map, vUV);
+            float r = color.r;
+            float g = color.g;
+            float b = color.b;
+
+            float epsilon = 0.02;
+
+            if(abs(r - g) < epsilon && abs(r - b) < epsilon && abs(g - b) < epsilon){
+              // gray, do nothing
+            }
+            else if(abs(r - g) < epsilon && r > b + 0.05){
+              // yellow, do nothing
+            }
+            else if (b > r && b > g){
+              // blue, do nothing
+            }
+            else if (r > g && r > b){
+              color.r = 0.45;
+              color.g = 0.35;
+              color.b = 0.2;
+            }
+            else if (g > r && g > b){
+              color.r = 0.55;
+              color.g = 0.48;
+              color.b = 0.3;
+            }
+
+            gl_FragColor = color;
+          }
+        `
+      });
+
+      item.mesh.material = shaderMat;
+      item.mesh.material.needsUpdate = true;
+    });
+
+    console.log('✓ Protanopia applied');
+  }
+
+  function applyMacularDegeneration(){ 
+    if(currentVisionActive==='Macular') return; 
+    resetVision(); 
+    currentVisionActive='Macular'; 
+    document.querySelector('#macularDarkSpot').setAttribute('visible',true); 
+    document.querySelector('#macularBlurRing').setAttribute('visible',true);
+    console.log('✓ Macular degeneration applied');
+  }
+  
+  function applyTunnelVision(){ 
+    if(currentVisionActive==='Tunnel') return; 
+    resetVision(); 
+    currentVisionActive='Tunnel'; 
+    document.querySelector('#tunnelVision').setAttribute('visible',true);
+    console.log('✓ Tunnel vision applied');
+  }
+
+  // MENU HANDLERS
+  function toggleAnimalMenu() {
+    const animal = document.querySelector('#animalOptions');
+    const disability = document.querySelector('#disabilityOptions');
+    
+    disability.setAttribute('visible', false);
+    
+    const isCurrentlyVisible = animal.getAttribute('visible');
+    animal.setAttribute('visible', !isCurrentlyVisible);
+    
+    if (!isCurrentlyVisible) {
+      menuIsOpen = true;
+      lastMenuOpened = 'animal';
+      console.log('Animal menu opened');
+    } else {
+      menuIsOpen = false;
+      lastMenuOpened = null;
+      console.log('Animal menu closed');
+    }
+  }
+  
+  function toggleDisabilityMenu() {
+    const animal = document.querySelector('#animalOptions');
+    const disability = document.querySelector('#disabilityOptions');
+    
+    animal.setAttribute('visible', false);
+    
+    const isCurrentlyVisible = disability.getAttribute('visible');
+    disability.setAttribute('visible', !isCurrentlyVisible);
+    
+    if (!isCurrentlyVisible) {
+      menuIsOpen = true;
+      lastMenuOpened = 'disability';
+      console.log('Disability menu opened');
+    } else {
+      menuIsOpen = false;
+      lastMenuOpened = null;
+      console.log('Disability menu closed');
+    }
+  }
+
+  function setupMenuHandlers(){
+    // Main menu buttons - χρησιμοποιούμε 'click' event που δουλεύει και με gaze
+    document.querySelector('#animalMenu').addEventListener('click', toggleAnimalMenu);
+    document.querySelector('#disabilityMenu').addEventListener('click', toggleDisabilityMenu);
+    document.querySelector('#resetButton').addEventListener('click', resetVision);
+
+    // ANIMAL OPTIONS
+    document.querySelectorAll('.animal-option').forEach(option => {
+      option.addEventListener('click', function() {
+        if (!menuIsOpen || lastMenuOpened !== 'animal') {
+          console.log('Animal menu is not open, ignoring click');
+          return;
+        }
+        
+        const vision = this.getAttribute('data-vision');
+        console.log('Applying vision:', vision);
+        
+        document.querySelector('#animalOptions').setAttribute('visible', false);
+        menuIsOpen = false;
+        lastMenuOpened = null;
+        currentVisionActive = null;
+        
+        if (vision === 'Cow') applyCowVision();
+        else if (vision === 'Horse') applyHorseVision();
+        else if (vision === 'Sparrow') applySparrowVision();
+      });
+    });
+
+    // DISABILITY OPTIONS
+    document.querySelectorAll('.disability-option').forEach(option => {
+      option.addEventListener('click', function() {
+        if (!menuIsOpen || lastMenuOpened !== 'disability') {
+          console.log('Disability menu is not open, ignoring click');
+          return;
+        }
+        
+        const vision = this.getAttribute('data-vision');
+        console.log('Applying vision:', vision);
+        
+        document.querySelector('#disabilityOptions').setAttribute('visible', false);
+        menuIsOpen = false;
+        lastMenuOpened = null;
+        currentVisionActive = null;
+        
+        if (vision === 'Protanopia') applyProtanopia();
+        else if (vision === 'Macular') applyMacularDegeneration();
+        else if (vision === 'Tunnel') applyTunnelVision();
+      });
+    });
+  }
+
+  // Για mobile δεν χρειαζόμαστε keyboard controls
+  // αλλά μπορούμε να τα αφήσουμε για testing σε desktop
+  document.addEventListener('keydown', function(e) { 
+    if (e.key === 'r' || e.key === 'R' || e.key === 'Escape' || e.key === ' ') {
+      e.preventDefault();
+      e.stopPropagation();
+      resetVision();
+      console.log('Reset triggered by keyboard:', e.key);
+    }
+  }, true);
+
+});
+  </script>
+
+</a-scene>
+</body>
+</html>
